@@ -44,6 +44,10 @@ MAGI_CSS = """
 @media (prefers-reduced-motion: reduce) {
     .magi-status.deliberating { animation: none; }
 }
+.stCode pre, .stCode code {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+}
 </style>
 """
 
