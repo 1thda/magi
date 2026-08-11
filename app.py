@@ -7,32 +7,63 @@ from summarize import NODES, summarize_one
 
 st.set_page_config(page_title="Magi", layout="wide")
 
+# Diamond layout is hardcoded to these three names — the geometry only makes
+# sense for exactly this arrangement (top / bottom-left / bottom-right).
+TOP_NODE = "BALTHASAR-2"
+LEFT_NODE = "CASPER-3"
+RIGHT_NODE = "MELCHIOR-1"
+
 MAGI_CSS = """
 <style>
-.stApp { background-color: #030000; }
-.magi-title {
-    text-align: center; color: #ff3300; font-size: 3rem; font-weight: bold;
-    letter-spacing: 0.4em; font-family: "Courier New", monospace;
-    border-top: 3px solid #ff6600; border-bottom: 3px solid #ff6600;
+.stApp { background-color: #000000; }
+[data-testid="stMainBlockContainer"] {
+    border: 4px double #ff8800;
+    max-width: 920px;
+    padding: 1em 1.6em 1.6em;
+    margin: 1em auto;
 }
-.magi-sub {
-    text-align: center; color: #33ff66; letter-spacing: 0.3em;
-    font-size: 0.8rem; font-family: "Courier New", monospace;
-    margin-bottom: 1.5em;
+.magi-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 4px double #33cc66; border-bottom: 4px double #33cc66;
+    padding: 0.35em 0.1em; margin-bottom: 0.7em;
+}
+.magi-header span {
+    color: #ff8800; font-size: 2rem; font-weight: bold;
+    letter-spacing: 0.4em; font-family: "Courier New", monospace;
+}
+.magi-info-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 1em;
+}
+.magi-info-left {
+    color: #ff9944; font-size: 0.7rem; line-height: 1.5;
+    font-family: "Courier New", monospace; white-space: pre;
+}
+.magi-info-right {
+    border: 2px solid #4fc3e8; color: #4fc3e8; padding: 0.15em 0.7em;
+    font-family: "Courier New", monospace; font-weight: bold; font-size: 1.1rem;
 }
 .magi-node {
-    background: #041104; border: 2px solid #ff6600;
-    clip-path: polygon(12% 0, 100% 0, 100% 78%, 88% 100%, 0 100%, 0 22%);
-    padding: 0.6em 1em; text-align: center; margin-bottom: 0.4em;
+    background: #57c2e6; color: #000; text-align: center;
+    padding: 0.9em 0.7em 1.6em;
 }
+.magi-node-top { clip-path: polygon(0 0, 100% 0, 76% 100%, 24% 100%); margin-bottom: -2px; }
+.magi-node-left { clip-path: polygon(0 0, 74% 0, 100% 32%, 100% 100%, 0 100%); }
+.magi-node-right { clip-path: polygon(26% 0, 100% 0, 100% 100%, 0 100%, 0 32%); }
 .magi-name {
-    color: #66ff99; font-size: 1.5rem; font-weight: bold;
-    letter-spacing: 0.15em; font-family: "Courier New", monospace;
+    font-size: 1.25rem; font-weight: bold; letter-spacing: 0.08em;
+    font-family: "Courier New", monospace;
 }
-.magi-model { color: #ff9944; font-size: 0.75rem; letter-spacing: 0.1em; }
+.magi-model { font-size: 0.7rem; font-family: "Courier New", monospace; opacity: 0.7; }
+.magi-hub { text-align: center; padding-top: 1.6em; }
+.magi-hub-line { border-top: 2px solid #ff8800; width: 55%; margin: 0.35em auto; }
+.magi-hub-label {
+    color: #ff8800; font-weight: bold; letter-spacing: 0.2em;
+    font-family: "Courier New", monospace; font-size: 1.3rem;
+}
 .magi-status {
     text-align: center; font-size: 1.1rem; font-weight: bold;
-    padding: 0.2em; margin-bottom: 0.4em; font-family: "Courier New", monospace;
+    padding: 0.2em; margin: 0.5em 0 0.4em; font-family: "Courier New", monospace;
 }
 .magi-status.deliberating {
     color: #ffaa00; border: 1px dashed #ffaa00;
@@ -53,17 +84,34 @@ MAGI_CSS = """
 
 st.markdown(MAGI_CSS, unsafe_allow_html=True)
 st.markdown(
-    '<div class="magi-title">MAGI</div>'
-    '<div class="magi-sub">DELIBERATION SYSTEM</div>',
+    '<div class="magi-header"><span>質問</span><span>解決</span></div>',
     unsafe_allow_html=True,
 )
+st.markdown(
+    '<div class="magi-info-row">'
+    '<div class="magi-info-left">CODE:127\nFILE:MAGI_SYS\nEXTENTION:0256'
+    '\nEX_MODE:ON\nPRIORITY:AAA</div>'
+    '<div class="magi-info-right">情報</div>'
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+
+def node_header_html(name: str, model: str, position_class: str) -> str:
+    return (
+        f'<div class="magi-node {position_class}">'
+        f'<div class="magi-name">{name}</div>'
+        f'<div class="magi-model">{model}</div>'
+        "</div>"
+    )
 
 
 def status_html(label: str, state: str) -> str:
     return f'<div class="magi-status {state}">{label}</div>'
 
 
-# Streamlit placeholders keep column position after the `with column:` block exits, so this can render from as_completed().
+# Streamlit placeholders keep their position after the `with column:` block
+# exits, so this can render from as_completed() regardless of finish order.
 def show_result(placeholder, result):
     with placeholder.container():
         if result.ok:
@@ -94,16 +142,39 @@ if uploaded_file is not None:
         )
         st.stop()
 
-    columns = st.columns(len(NODES))
+    node_by_name = dict(NODES)
     placeholders = {}
-    for column, (name, model) in zip(columns, NODES):
-        with column:
-            st.markdown(
-                f'<div class="magi-node"><div class="magi-name">{name}</div>'
-                f'<div class="magi-model">{model}</div></div>',
-                unsafe_allow_html=True,
-            )
-            placeholders[name] = st.empty()
+
+    top_row = st.columns([1, 2, 1])
+    with top_row[1]:
+        st.markdown(
+            node_header_html(TOP_NODE, node_by_name[TOP_NODE], "magi-node-top"),
+            unsafe_allow_html=True,
+        )
+        placeholders[TOP_NODE] = st.empty()
+
+    bottom_row = st.columns([2, 1, 2])
+    with bottom_row[0]:
+        st.markdown(
+            node_header_html(LEFT_NODE, node_by_name[LEFT_NODE], "magi-node-left"),
+            unsafe_allow_html=True,
+        )
+        placeholders[LEFT_NODE] = st.empty()
+    with bottom_row[1]:
+        st.markdown(
+            '<div class="magi-hub">'
+            '<div class="magi-hub-line"></div>'
+            '<div class="magi-hub-label">MAGI</div>'
+            '<div class="magi-hub-line"></div>'
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    with bottom_row[2]:
+        st.markdown(
+            node_header_html(RIGHT_NODE, node_by_name[RIGHT_NODE], "magi-node-right"),
+            unsafe_allow_html=True,
+        )
+        placeholders[RIGHT_NODE] = st.empty()
 
     text_key = hash(text)
     with ThreadPoolExecutor(max_workers=len(NODES)) as executor:
