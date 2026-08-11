@@ -1,4 +1,4 @@
-# Paper Summarizer — Design Spec
+# Magi — Design Spec
 
 ## Purpose
 A locally hosted browser tool: upload a research article PDF, get it summarized by multiple local LLMs (via Ollama) side by side, and pick the best summary by eye.
@@ -42,4 +42,4 @@ PDF upload → pypdf text extraction → (parallel) Ollama chat per model → st
 
 ## Deliverable
 - `app.py`, `requirements.txt` (`streamlit`, `pypdf`, `ollama`), short `README.md` (setup + `streamlit run app.py`), `.gitignore` (Python venv/cache).
-- Committed to local git repo at `~/paper-summarizer`, pushed to GitHub (user creates/authorizes the remote).
+- Committed to local git repo at `~/magi`, pushed to GitHub (user creates/authorizes the remote).
