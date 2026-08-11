@@ -1,9 +1,14 @@
-from concurrent.futures import ThreadPoolExecutor
+import re
 from dataclasses import dataclass
 
 import ollama
 
-MODELS = ["gemma4:26b", "gemma4:latest"]
+# (MAGI node name, Ollama model) — append a pair to add a node
+NODES = [
+    ("MELCHIOR-1", "gemma4:26b"),
+    ("BALTHASAR-2", "gemma4:latest"),
+    ("CASPER-3", "qwen3:8b"),
+]
 
 PROMPT_TEMPLATE = "Summarize this research article in a few paragraphs:\n\n{text}"
 
@@ -26,12 +31,9 @@ def summarize_one(model: str, text: str) -> SummaryResult:
             messages=[{"role": "user", "content": PROMPT_TEMPLATE.format(text=text)}],
             options={"num_ctx": NUM_CTX},
         )
-        return SummaryResult(ok=True, text=response["message"]["content"])
+        content = response["message"]["content"]
+        # thinking models (e.g. qwen3) may inline reasoning; keep only the answer
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        return SummaryResult(ok=True, text=content)
     except Exception as exc:
         return SummaryResult(ok=False, text=str(exc))
-
-
-def summarize_all(text: str) -> dict[str, SummaryResult]:
-    with ThreadPoolExecutor(max_workers=len(MODELS)) as executor:
-        futures = {model: executor.submit(summarize_one, model, text) for model in MODELS}
-        return {model: future.result() for model, future in futures.items()}

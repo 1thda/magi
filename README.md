@@ -1,13 +1,14 @@
 # Magi
 
-Upload a research article PDF, get it summarized side-by-side by local Ollama models, copy the best one. Named after the three-supercomputer oracle from Neon Genesis Evangelion.
+Upload a research article PDF, get it summarized side-by-side by local Ollama models, copy the best one. Named after the three-supercomputer oracle from Neon Genesis Evangelion. The three summarizer nodes are named after the MAGI supercomputers from Neon Genesis Evangelion: MELCHIOR-1 (`gemma4:26b`), BALTHASAR-2 (`gemma4:latest`), CASPER-3 (`qwen3:8b`).
 
 ## Setup
 
-1. Install [Ollama](https://ollama.com) and pull the models listed in `summarize.py` (`MODELS`):
+1. Install [Ollama](https://ollama.com) and pull the models listed in `summarize.py` (`NODES`):
    ```bash
    ollama pull gemma4:26b
    ollama pull gemma4:latest
+   ollama pull qwen3:8b
    ```
 2. Create a virtualenv and install dependencies:
    ```bash
@@ -33,4 +34,4 @@ pytest
 
 ## Adding a model
 
-Append the Ollama model name to `MODELS` in `summarize.py`.
+Append a `("NODE-NAME", "ollama-model")` pair to `NODES` in `summarize.py`.
