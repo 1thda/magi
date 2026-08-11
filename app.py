@@ -9,7 +9,13 @@ st.title("Magi")
 uploaded_file = st.file_uploader("Upload a research article PDF", type="pdf")
 
 if uploaded_file is not None:
-    text = extract_text(uploaded_file)
+    try:
+        text = extract_text(uploaded_file)
+    except Exception:
+        st.error(
+            "Couldn't read this PDF — it may be corrupt or not a valid PDF file."
+        )
+        st.stop()
 
     if not text:
         st.error(

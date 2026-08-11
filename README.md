@@ -20,7 +20,7 @@ Upload a research article PDF, get it summarized side-by-side by local Ollama mo
 
 ```bash
 ollama serve &
-streamlit run app.py
+streamlit run app.py --server.address=localhost
 ```
 
 Open the URL Streamlit prints (usually http://localhost:8501), upload a PDF, and read the summaries side by side. Hover a summary to copy it.
