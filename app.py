@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import streamlit as st
 
 from extract import extract_text
-from summarize import NODES, summarize_one
+from summarize import NODES, judge_summaries, summarize_one
 
 st.set_page_config(page_title="Magi", layout="wide")
 
@@ -71,6 +71,8 @@ MAGI_CSS = """
 }
 .magi-status.approved { color: #33ff66; border: 1px solid #33ff66; }
 .magi-status.rejected { color: #ff3333; border: 1px solid #ff3333; background: #220000; }
+.magi-status.skipped { color: #888899; border: 1px solid #555566; }
+.magi-node-winner { filter: drop-shadow(0 0 10px #ffdd00) drop-shadow(0 0 4px #ffdd00); }
 @keyframes magi-blink { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) {
     .magi-status.deliberating { animation: none; }
@@ -144,21 +146,25 @@ if uploaded_file is not None:
 
     node_by_name = dict(NODES)
     placeholders = {}
+    header_placeholders = {}
+    position_class = {TOP_NODE: "magi-node-top", LEFT_NODE: "magi-node-left", RIGHT_NODE: "magi-node-right"}
+
+    def render_header(name, extra_class=""):
+        cls = f"{position_class[name]} {extra_class}".strip()
+        header_placeholders[name].markdown(
+            node_header_html(name, node_by_name[name], cls), unsafe_allow_html=True
+        )
 
     top_row = st.columns([1, 2, 1])
     with top_row[1]:
-        st.markdown(
-            node_header_html(TOP_NODE, node_by_name[TOP_NODE], "magi-node-top"),
-            unsafe_allow_html=True,
-        )
+        header_placeholders[TOP_NODE] = st.empty()
+        render_header(TOP_NODE)
         placeholders[TOP_NODE] = st.empty()
 
     bottom_row = st.columns([2, 1, 2])
     with bottom_row[0]:
-        st.markdown(
-            node_header_html(LEFT_NODE, node_by_name[LEFT_NODE], "magi-node-left"),
-            unsafe_allow_html=True,
-        )
+        header_placeholders[LEFT_NODE] = st.empty()
+        render_header(LEFT_NODE)
         placeholders[LEFT_NODE] = st.empty()
     with bottom_row[1]:
         st.markdown(
@@ -170,18 +176,21 @@ if uploaded_file is not None:
             unsafe_allow_html=True,
         )
     with bottom_row[2]:
-        st.markdown(
-            node_header_html(RIGHT_NODE, node_by_name[RIGHT_NODE], "magi-node-right"),
-            unsafe_allow_html=True,
-        )
+        header_placeholders[RIGHT_NODE] = st.empty()
+        render_header(RIGHT_NODE)
         placeholders[RIGHT_NODE] = st.empty()
 
+    verdict_placeholder = st.empty()
+    verdict_placeholder.markdown(status_html("審議中", "deliberating"), unsafe_allow_html=True)
+
     text_key = hash(text)
+    node_results = {}
     with ThreadPoolExecutor(max_workers=len(NODES)) as executor:
         futures = {}
         for name, model in NODES:
             key = (model, text_key)
             if key in cache:
+                node_results[name] = cache[key]
                 show_result(placeholders[name], cache[key])
             else:
                 placeholders[name].markdown(
@@ -192,4 +201,33 @@ if uploaded_file is not None:
             name, key = futures[future]
             result = future.result()
             cache[key] = result
+            node_results[name] = result
             show_result(placeholders[name], result)
+
+    successes = {name: result.text for name, result in node_results.items() if result.ok}
+
+    if len(successes) < 2:
+        with verdict_placeholder.container():
+            st.markdown(status_html("対象外", "skipped"), unsafe_allow_html=True)
+            st.info("Not enough summaries to judge (need at least 2 successful nodes).")
+    else:
+        verdict_placeholder.markdown(status_html("裁定中", "deliberating"), unsafe_allow_html=True)
+        judge_key = (text_key, frozenset(successes.items()))
+        if judge_key in cache:
+            judge_result = cache[judge_key]
+        else:
+            judge_result = judge_summaries(successes)
+            cache[judge_key] = judge_result
+
+        if judge_result.winner:
+            render_header(judge_result.winner, "magi-node-winner")
+
+        with verdict_placeholder.container():
+            if not judge_result.ok:
+                st.markdown(status_html("否定", "rejected"), unsafe_allow_html=True)
+                st.error(judge_result.text)
+            else:
+                st.markdown(status_html("決定", "approved"), unsafe_allow_html=True)
+                if judge_result.winner:
+                    st.markdown(f"**Winner: {judge_result.winner}**")
+                st.write(judge_result.text)
