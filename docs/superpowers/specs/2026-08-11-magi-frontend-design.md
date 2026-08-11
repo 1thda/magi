@@ -25,7 +25,7 @@ Restyle the app to resemble the MAGI supercomputer UI from Neon Genesis Evangeli
   1. On upload + successful extraction, create one `st.empty()` placeholder per node and render all as **審議中** (deliberating, blinking orange).
   2. Submit all node jobs to a `ThreadPoolExecutor`; iterate `concurrent.futures.as_completed`; as each future lands, rewrite that node's placeholder: **承認** (green badge) + summary in `st.code` (native copy button) on success, **否定** (red badge) + error text on failure.
   3. One node failing never blocks or alters the others.
-- **Caching**: the per-model summarize call is wrapped with `@st.cache_data` keyed on (model, text) so reruns/re-uploads of the same PDF render instantly. Cached results skip the 審議中 state.
+- **Caching**: results are cached in `st.session_state` keyed by (model, text-hash), checked on the main thread before jobs are submitted — `@st.cache_data` was rejected because cache lookups inside worker threads emit ScriptRunContext warnings. Cached results skip the 審議中 state.
 - Existing behavior kept: PDF-only uploader, corrupt-PDF try/except with friendly error, empty-text error, localhost binding docs.
 
 ## Error handling
