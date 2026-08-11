@@ -230,4 +230,4 @@ if uploaded_file is not None:
                 st.markdown(status_html("決定", "approved"), unsafe_allow_html=True)
                 if judge_result.winner:
                     st.markdown(f"**Winner: {judge_result.winner}**")
-                st.write(judge_result.text)
+                st.code(judge_result.text, language=None)
