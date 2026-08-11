@@ -41,6 +41,9 @@ MAGI_CSS = """
 .magi-status.approved { color: #33ff66; border: 1px solid #33ff66; }
 .magi-status.rejected { color: #ff3333; border: 1px solid #ff3333; background: #220000; }
 @keyframes magi-blink { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+    .magi-status.deliberating { animation: none; }
+}
 </style>
 """
 
@@ -56,6 +59,7 @@ def status_html(label: str, state: str) -> str:
     return f'<div class="magi-status {state}">{label}</div>'
 
 
+# Streamlit placeholders keep column position after the `with column:` block exits, so this can render from as_completed().
 def show_result(placeholder, result):
     with placeholder.container():
         if result.ok:

@@ -4,7 +4,7 @@ Upload a research article PDF, get it summarized side-by-side by local Ollama mo
 
 ## Setup
 
-1. Install [Ollama](https://ollama.com) and pull the models listed in `summarize.py` (`MODELS`):
+1. Install [Ollama](https://ollama.com) and pull the models listed in `summarize.py` (`NODES`):
    ```bash
    ollama pull gemma4:26b
    ollama pull gemma4:latest
