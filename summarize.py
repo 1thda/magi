@@ -1,7 +1,11 @@
+import logging
 import re
+import time
 from dataclasses import dataclass
 
 import ollama
+
+logger = logging.getLogger(__name__)
 
 # (MAGI node name, Ollama model) — append a pair to add a node
 NODES = [
@@ -39,6 +43,7 @@ def _strip_thinking(content: str) -> str:
 
 
 def summarize_one(model: str, text: str) -> SummaryResult:
+    start = time.monotonic()
     try:
         response = ollama.chat(
             model=model,
@@ -46,8 +51,10 @@ def summarize_one(model: str, text: str) -> SummaryResult:
             options={"num_ctx": NUM_CTX},
         )
         content = _strip_thinking(response["message"]["content"])
+        logger.info("summarize_one(%s) ok in %.1fs", model, time.monotonic() - start)
         return SummaryResult(ok=True, text=content)
     except Exception as exc:
+        logger.exception("summarize_one(%s) failed after %.1fs", model, time.monotonic() - start)
         return SummaryResult(ok=False, text=str(exc))
 
 
@@ -61,6 +68,7 @@ def judge_summaries(results: dict[str, str]) -> JudgeResult:
         "Which one is the best summary? State the system name of the best one "
         "clearly, then give a one-sentence reason."
     )
+    start = time.monotonic()
     try:
         response = ollama.chat(
             model=JUDGE_MODEL,
@@ -70,6 +78,8 @@ def judge_summaries(results: dict[str, str]) -> JudgeResult:
         content = _strip_thinking(response["message"]["content"])
         matches = [name for name in candidates if name.lower() in content.lower()]
         winner = matches[0] if len(matches) == 1 else None
+        logger.info("judge_summaries ok in %.1fs, winner=%s", time.monotonic() - start, winner)
         return JudgeResult(ok=True, winner=winner, text=content)
     except Exception as exc:
+        logger.exception("judge_summaries failed after %.1fs", time.monotonic() - start)
         return JudgeResult(ok=False, winner=None, text=str(exc))
